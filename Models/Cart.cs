@@ -9,7 +9,7 @@ namespace FastFoodKing.Models
         public int MenuId { get; set; }
         public Menu Menu { get; set; }
         public string UserId { get; set; }
-        public Users  Users { get; set; }
+        public User  Users { get; set; }
         [Required, MinLength(1)]
         public int Count { get; set; }
     }

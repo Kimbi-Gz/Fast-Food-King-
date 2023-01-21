@@ -7,40 +7,39 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
+using FastFoodKing.Configuration;
 
 namespace FastFoodKing.Controllers
 {
     public class UsersController : Controller
     {
         private readonly FastFoodKingContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public UsersController(FastFoodKingContext context)
+        public UsersController(FastFoodKingContext context, IUnitOfWork unitOfWork)
         {
             _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         // GET: Users
         public async Task<IActionResult> Index()
         {
-              return View(await _context.User.ToListAsync());
+            return View(await _unitOfWork.UserRepository.GetAllSync());
         }
 
         // GET: Users/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null || _context.User == null)
+
+            var user = await _unitOfWork.UserRepository.GetByIdAsync(id);
+                
+            if (user == null)
             {
                 return NotFound();
             }
 
-            var users = await _context.User
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (users == null)
-            {
-                return NotFound();
-            }
-
-            return View(users);
+            return View(user);
         }
 
         // GET: Users/Create
@@ -54,31 +53,26 @@ namespace FastFoodKing.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name,Address,Phone,Email")] Users users)
+        public async Task<IActionResult> Create([Bind("Id,Name,Address,Phone,Email")] User user)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(users);
-                await _context.SaveChangesAsync();
+
+                 
+                _unitOfWork.UserRepository.Add(user);
+                _unitOfWork.Commit();
                 return RedirectToAction(nameof(Index));
-            }
-            return View(users);
+  
         }
 
         // GET: Users/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null || _context.User == null)
-            {
-                return NotFound();
-            }
+            var user = await _unitOfWork.UserRepository.GetByIdAsync(id); 
 
-            var users = await _context.User.FindAsync(id);
-            if (users == null)
+            if (user == null)
             {
                 return NotFound();
             }
-            return View(users);
+            return View(user);
         }
 
         // POST: Users/Edit/5
@@ -86,23 +80,21 @@ namespace FastFoodKing.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Address,Phone,Email")] Users users)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Address,Phone,Email")] User user)
         {
-            if (id != users.Id)
+            if (id != user.Id)
             {
                 return NotFound();
             }
-
-            if (ModelState.IsValid)
-            {
                 try
                 {
-                    _context.Update(users);
-                    await _context.SaveChangesAsync();
+                  _unitOfWork.UserRepository.Update(user);
+                  _unitOfWork.Commit();
+                   
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!UsersExists(users.Id))
+                    if (!UserExists(user.Id))
                     {
                         return NotFound();
                     }
@@ -112,26 +104,24 @@ namespace FastFoodKing.Controllers
                     }
                 }
                 return RedirectToAction(nameof(Index));
-            }
-            return View(users);
+ 
         }
 
         // GET: Users/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
             if (id == null || _context.User == null)
             {
                 return NotFound();
             }
 
-            var users = await _context.User
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (users == null)
+            var user = await _unitOfWork.UserRepository.GetByIdAsync(id);
+            if (user == null)
             {
                 return NotFound();
             }
 
-            return View(users);
+            return View(user);
         }
 
         // POST: Users/Delete/5
@@ -143,19 +133,17 @@ namespace FastFoodKing.Controllers
             {
                 return Problem("Entity set 'FastFoodKingContext.User'  is null.");
             }
-            var users = await _context.User.FindAsync(id);
-            if (users != null)
-            {
-                _context.User.Remove(users);
-            }
-            
-            await _context.SaveChangesAsync();
+
+            _unitOfWork.UserRepository.Delete(id);
+            _unitOfWork.Commit();
+
             return RedirectToAction(nameof(Index));
         }
 
-        private bool UsersExists(int id)
+        private bool UserExists(int id)
         {
-          return _context.User.Any(e => e.Id == id);
+            return _unitOfWork.UserRepository.GetByIdAsync(id) != null;
         }
     }
+
 }

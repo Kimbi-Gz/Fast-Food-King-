@@ -7,42 +7,39 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
+using FastFoodKing.Configuration;
 
 namespace FastFoodKing.Controllers
 {
     public class OrdenDetailsController : Controller
     {
         private readonly FastFoodKingContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public OrdenDetailsController(FastFoodKingContext context)
+        public OrdenDetailsController(FastFoodKingContext context, IUnitOfWork unitOfWork)
         {
             _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         // GET: OrdenDetails
         public async Task<IActionResult> Index()
         {
-            var fastFoodKingContext = _context.OrdenDetails.Include(o => o.Menu);
+            var fastFoodKingContext = _context.OrdenDetail.Include(o => o.Menu);
             return View(await fastFoodKingContext.ToListAsync());
         }
 
         // GET: OrdenDetails/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null || _context.OrdenDetails == null)
+            var ordenDetail = await _unitOfWork.OrdenDetailRepository.GetByIdAsync(id);
+  
+            if (ordenDetail == null)
             {
                 return NotFound();
             }
 
-            var ordenDetails = await _context.OrdenDetails
-                .Include(o => o.Menu)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (ordenDetails == null)
-            {
-                return NotFound();
-            }
-
-            return View(ordenDetails);
+            return View(ordenDetail);
         }
 
         // GET: OrdenDetails/Create
@@ -57,33 +54,26 @@ namespace FastFoodKing.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,MenuId,Count,Description,Total,UserName,Address,phone")] OrdenDetails ordenDetails)
+        public async Task<IActionResult> Create([Bind("Id,MenuId,Count,Description,Total,UserName,Address,phone")] OrdenDetail ordenDetail)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(ordenDetails);
-                await _context.SaveChangesAsync();
+ 
+                _unitOfWork.OrdenDetailRepository.Add(ordenDetail);
+                _unitOfWork.Commit();
                 return RedirectToAction(nameof(Index));
-            }
-            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", ordenDetails.MenuId);
-            return View(ordenDetails);
+
         }
 
         // GET: OrdenDetails/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null || _context.OrdenDetails == null)
-            {
-                return NotFound();
-            }
 
-            var ordenDetails = await _context.OrdenDetails.FindAsync(id);
-            if (ordenDetails == null)
+            var ordenDetail = await _unitOfWork.OrdenDetailRepository.GetByIdAsync(id);
+            if (ordenDetail == null)
             {
                 return NotFound();
             }
-            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", ordenDetails.MenuId);
-            return View(ordenDetails);
+            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", ordenDetail.MenuId);
+            return View(ordenDetail);
         }
 
         // POST: OrdenDetails/Edit/5
@@ -91,23 +81,21 @@ namespace FastFoodKing.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,MenuId,Count,Description,Total,UserName,Address,phone")] OrdenDetails ordenDetails)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,MenuId,Count,Description,Total,UserName,Address,phone")] OrdenDetail ordenDetail)
         {
-            if (id != ordenDetails.Id)
+            if (id != ordenDetail.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
                 try
                 {
-                    _context.Update(ordenDetails);
-                    await _context.SaveChangesAsync();
+                  _unitOfWork.OrdenDetailRepository.Update(ordenDetail);
+                  _unitOfWork.Commit();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!OrdenDetailsExists(ordenDetails.Id))
+                    if (!OrdenDetailExists(ordenDetail.Id))
                     {
                         return NotFound();
                     }
@@ -117,28 +105,24 @@ namespace FastFoodKing.Controllers
                     }
                 }
                 return RedirectToAction(nameof(Index));
-            }
-            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", ordenDetails.MenuId);
-            return View(ordenDetails);
+
         }
 
         // GET: OrdenDetails/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
-            if (id == null || _context.OrdenDetails == null)
+            if (id == null || _context.OrdenDetail == null)
             {
                 return NotFound();
             }
 
-            var ordenDetails = await _context.OrdenDetails
-                .Include(o => o.Menu)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (ordenDetails == null)
+            var ordenDetail = await _unitOfWork.OrdenDetailRepository.GetByIdAsync(id);
+            if (ordenDetail == null)
             {
                 return NotFound();
             }
 
-            return View(ordenDetails);
+            return View(ordenDetail);
         }
 
         // POST: OrdenDetails/Delete/5
@@ -146,23 +130,19 @@ namespace FastFoodKing.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            if (_context.OrdenDetails == null)
+            if (_context.OrdenDetail == null)
             {
-                return Problem("Entity set 'FastFoodKingContext.OrdenDetails'  is null.");
+                return Problem("Entity set 'FastFoodKingContext.OrdenDetail'  is null.");
             }
-            var ordenDetails = await _context.OrdenDetails.FindAsync(id);
-            if (ordenDetails != null)
-            {
-                _context.OrdenDetails.Remove(ordenDetails);
-            }
-            
-            await _context.SaveChangesAsync();
+         
+            _unitOfWork.OrdenDetailRepository.Delete(id);
+            _unitOfWork.Commit();
             return RedirectToAction(nameof(Index));
         }
 
-        private bool OrdenDetailsExists(int id)
+        private bool OrdenDetailExists(int id)
         {
-          return _context.OrdenDetails.Any(e => e.Id == id);
+          return _unitOfWork.OrdenDetailRepository.GetByIdAsync(id) != null;
         }
     }
 }

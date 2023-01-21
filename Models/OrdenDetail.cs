@@ -1,6 +1,6 @@
 ﻿namespace FastFoodKing.Models
 {
-    public class OrdenDetails
+    public class OrdenDetail
     {
         public int Id { get; set; }
         public int MenuId { get; set; }

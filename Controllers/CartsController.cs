@@ -7,36 +7,33 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
+using FastFoodKing.Configuration;
 
 namespace FastFoodKing.Controllers
 {
     public class CartsController : Controller
     {
         private readonly FastFoodKingContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CartsController(FastFoodKingContext context)
+        public CartsController(FastFoodKingContext context, IUnitOfWork unitOfWork)
         {
             _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         // GET: Carts
         public async Task<IActionResult> Index()
         {
-            var fastFoodKingContext = _context.Cart.Include(c => c.Menu);
-            return View(await fastFoodKingContext.ToListAsync());
+            return View(await _unitOfWork.CartRepository.GetAllSync());
         }
 
         // GET: Carts/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null || _context.Cart == null)
-            {
-                return NotFound();
-            }
 
-            var cart = await _context.Cart
-                .Include(c => c.Menu)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var cart = await _unitOfWork.CartRepository.GetByIdAsync(id);
+
             if (cart == null)
             {
                 return NotFound();
@@ -59,25 +56,18 @@ namespace FastFoodKing.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,MenuId,UserId,Count")] Cart cart)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(cart);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", cart.MenuId);
-            return View(cart);
+
+            _unitOfWork.CartRepository.Add(cart);
+            _unitOfWork.Commit();
+            return RedirectToAction(nameof(Index));
+
         }
 
         // GET: Carts/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null || _context.Cart == null)
-            {
-                return NotFound();
-            }
 
-            var cart = await _context.Cart.FindAsync(id);
+            var cart = await _unitOfWork.CartRepository.GetByIdAsync(id);
             if (cart == null)
             {
                 return NotFound();
@@ -98,12 +88,12 @@ namespace FastFoodKing.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
+
                 try
                 {
-                    _context.Update(cart);
-                    await _context.SaveChangesAsync();
+                    _unitOfWork.CartRepository.Update(cart); 
+                    _unitOfWork.Commit();   
+          
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -117,22 +107,18 @@ namespace FastFoodKing.Controllers
                     }
                 }
                 return RedirectToAction(nameof(Index));
-            }
-            ViewData["MenuId"] = new SelectList(_context.Menu, "Id", "Id", cart.MenuId);
-            return View(cart);
+
         }
 
         // GET: Carts/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
             if (id == null || _context.Cart == null)
             {
                 return NotFound();
             }
 
-            var cart = await _context.Cart
-                .Include(c => c.Menu)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var cart = await _unitOfWork.CartRepository.GetByIdAsync(id);
             if (cart == null)
             {
                 return NotFound();
@@ -150,19 +136,14 @@ namespace FastFoodKing.Controllers
             {
                 return Problem("Entity set 'FastFoodKingContext.Cart'  is null.");
             }
-            var cart = await _context.Cart.FindAsync(id);
-            if (cart != null)
-            {
-                _context.Cart.Remove(cart);
-            }
-            
-            await _context.SaveChangesAsync();
+            _unitOfWork.CartRepository.Delete(id);
+            _unitOfWork.Commit();
             return RedirectToAction(nameof(Index));
         }
 
         private bool CartExists(int id)
         {
-          return _context.Cart.Any(e => e.Id == id);
+            return _unitOfWork.CartRepository.GetByIdAsync(id) != null;
         }
     }
 }

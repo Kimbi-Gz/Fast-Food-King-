@@ -7,34 +7,33 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
+using FastFoodKing.Configuration;
 
 namespace FastFoodKing.Controllers
 {
     public class CategoriesController : Controller
     {
         private readonly FastFoodKingContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CategoriesController(FastFoodKingContext context)
+        public CategoriesController(FastFoodKingContext context, UnitOfWork unitOfWork)
         {
             _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         // GET: Categories
         public async Task<IActionResult> Index()
         {
-              return View(await _context.Category.ToListAsync());
+              return View(await _unitOfWork.CategoryRepository.GetAllSync());
         }
 
         // GET: Categories/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null || _context.Category == null)
-            {
-                return NotFound();
-            }
 
-            var category = await _context.Category
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id);
+
             if (category == null)
             {
                 return NotFound();
@@ -56,24 +55,16 @@ namespace FastFoodKing.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title")] Category category)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(category);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(category);
+            _unitOfWork.CategoryRepository.Add(category);
+            _unitOfWork.Commit();
+            return RedirectToAction(nameof(Index));
+
         }
 
         // GET: Categories/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null || _context.Category == null)
-            {
-                return NotFound();
-            }
-
-            var category = await _context.Category.FindAsync(id);
+            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id); 
             if (category == null)
             {
                 return NotFound();
@@ -93,12 +84,10 @@ namespace FastFoodKing.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
                 try
                 {
-                    _context.Update(category);
-                    await _context.SaveChangesAsync();
+                     _unitOfWork.CategoryRepository.Update(category);
+                     _unitOfWork.Commit();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -112,20 +101,18 @@ namespace FastFoodKing.Controllers
                     }
                 }
                 return RedirectToAction(nameof(Index));
-            }
-            return View(category);
         }
 
         // GET: Categories/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
             if (id == null || _context.Category == null)
             {
                 return NotFound();
             }
 
-            var category = await _context.Category
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id);
+              
             if (category == null)
             {
                 return NotFound();
@@ -143,19 +130,14 @@ namespace FastFoodKing.Controllers
             {
                 return Problem("Entity set 'FastFoodKingContext.Category'  is null.");
             }
-            var category = await _context.Category.FindAsync(id);
-            if (category != null)
-            {
-                _context.Category.Remove(category);
-            }
-            
-            await _context.SaveChangesAsync();
+            _unitOfWork.CategoryRepository.Delete(id);
+            _unitOfWork.Commit();
             return RedirectToAction(nameof(Index));
         }
 
         private bool CategoryExists(int id)
         {
-          return _context.Category.Any(e => e.Id == id);
+          return _unitOfWork.CategoryRepository.GetByIdAsync(id) != null;
         }
     }
 }

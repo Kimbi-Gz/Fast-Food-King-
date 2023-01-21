@@ -7,36 +7,33 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
+using FastFoodKing.Configuration;
 
 namespace FastFoodKing.Controllers
 {
     public class MenusController : Controller
     {
         private readonly FastFoodKingContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public MenusController(FastFoodKingContext context)
+        public MenusController(FastFoodKingContext context, IUnitOfWork unitOfWork)
         {
             _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         // GET: Menus
         public async Task<IActionResult> Index()
         {
-            var fastFoodKingContext = _context.Menu.Include(m => m.Category);
-            return View(await fastFoodKingContext.ToListAsync());
+        
+            return View(await _unitOfWork.MenuRepository.GetAllSync());
         }
 
         // GET: Menus/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null || _context.Menu == null)
-            {
-                return NotFound();
-            }
+            var menu = await _unitOfWork.MenuRepository.GetByIdAsync(id); 
 
-            var menu = await _context.Menu
-                .Include(m => m.Category)
-                .FirstOrDefaultAsync(m => m.Id == id);
             if (menu == null)
             {
                 return NotFound();
@@ -59,25 +56,17 @@ namespace FastFoodKing.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title,Description,Price,CategoryId")] Menu menu)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(menu);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["CategoryId"] = new SelectList(_context.Category, "Id", "Id", menu.CategoryId);
-            return View(menu);
+            _unitOfWork.MenuRepository.Add(menu);
+            _unitOfWork.Commit();
+            return RedirectToAction(nameof(Index));
+
         }
 
         // GET: Menus/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null || _context.Menu == null)
-            {
-                return NotFound();
-            }
 
-            var menu = await _context.Menu.FindAsync(id);
+            var menu = await _unitOfWork.MenuRepository.GetByIdAsync(id);
             if (menu == null)
             {
                 return NotFound();
@@ -98,12 +87,10 @@ namespace FastFoodKing.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(menu);
-                    await _context.SaveChangesAsync();
+            try
+              {
+                    _unitOfWork.MenuRepository.Update(menu);
+                    _unitOfWork.Commit();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -117,22 +104,18 @@ namespace FastFoodKing.Controllers
                     }
                 }
                 return RedirectToAction(nameof(Index));
-            }
-            ViewData["CategoryId"] = new SelectList(_context.Category, "Id", "Id", menu.CategoryId);
-            return View(menu);
+
         }
 
         // GET: Menus/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int id)
         {
             if (id == null || _context.Menu == null)
             {
                 return NotFound();
             }
 
-            var menu = await _context.Menu
-                .Include(m => m.Category)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var menu = await _unitOfWork.MenuRepository.GetByIdAsync(id);
             if (menu == null)
             {
                 return NotFound();
@@ -150,19 +133,15 @@ namespace FastFoodKing.Controllers
             {
                 return Problem("Entity set 'FastFoodKingContext.Menu'  is null.");
             }
-            var menu = await _context.Menu.FindAsync(id);
-            if (menu != null)
-            {
-                _context.Menu.Remove(menu);
-            }
-            
-            await _context.SaveChangesAsync();
+
+            _unitOfWork.MenuRepository.Delete(id);
+            _unitOfWork.Commit();
             return RedirectToAction(nameof(Index));
         }
 
         private bool MenuExists(int id)
         {
-          return _context.Menu.Any(e => e.Id == id);
+          return _unitOfWork.MenuRepository.GetByIdAsync(id) != null;
         }
     }
 }
