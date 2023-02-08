@@ -2,6 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FastFoodKing.Data;
 using FastFoodKing.Configuration;
+using FastFoodKing.Commands;
+using FastFoodKing;
+using FastFoodKing.CommandHandler;
+using FastFoodKing.DTOs;
+using FastFoodKing.Models;
+using FastFoodKing.QueryHandler;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<FastFoodKingContext>(options =>
@@ -11,6 +17,11 @@ builder.Services.AddDbContext<FastFoodKingContext>(options =>
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+builder.Services.AddScoped<ICommandHandler<CategoryDTO>, AddCategoryCommandHandler>();
+builder.Services.AddScoped<ICommandHandler<RemoveByIdCommand>, RemoveCategoryCommandHandler>();
+builder.Services.AddScoped<IQueryHandler<Category, QueryByIdCommand>, CategoryQueryHandler>();
+
 
 var app = builder.Build();
 

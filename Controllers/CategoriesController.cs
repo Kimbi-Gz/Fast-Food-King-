@@ -8,136 +8,93 @@ using Microsoft.EntityFrameworkCore;
 using FastFoodKing.Data;
 using FastFoodKing.Models;
 using FastFoodKing.Configuration;
+using FastFoodKing.Commands;
+using FastFoodKing.DTOs;
+using FastFoodKing.QueryHandler;
 
 namespace FastFoodKing.Controllers
 {
     public class CategoriesController : Controller
     {
-        private readonly FastFoodKingContext _context;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ICommandHandler<CategoryDTO> _categoryCommandHandler;
+        private readonly ICommandHandler<RemoveByIdCommand> _removeCommandHandler;
+        private readonly IQueryHandler<Category, QueryByIdCommand> _categoryQueryHandler;
 
-        public CategoriesController(FastFoodKingContext context, UnitOfWork unitOfWork)
+
+        public CategoriesController(
+           ICommandHandler<CategoryDTO> categoryCommandHandler,
+           ICommandHandler<RemoveByIdCommand> removeCommandHandler,
+           IQueryHandler<Category, QueryByIdCommand> categoryQueryHandler
+           )
         {
-            _context = context;
-            _unitOfWork = unitOfWork;
-        }
+            _categoryCommandHandler = categoryCommandHandler;
+            _removeCommandHandler = removeCommandHandler;
+            _categoryQueryHandler = categoryQueryHandler;
 
+        }
         // GET: Categories
-        public async Task<IActionResult> Index()
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Category>>> GetCategory()
         {
-              return View(await _unitOfWork.CategoryRepository.GetAllSync());
+            //_kafkaProducerHandler.WriteMessage("GET");
+            var categories = await _categoryQueryHandler.GetAll();
+            return Ok(categories);
         }
+
 
         // GET: Categories/Details/5
-        public async Task<IActionResult> Details(int id)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Category>> GetCategory(int id)
         {
-
-            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id);
+            //_kafkaProducerHandler.WriteMessage("GET");
+            var category = await _categoryQueryHandler.GetOne(new QueryByIdCommand()
+            {
+                Id = id
+            });
 
             if (category == null)
             {
                 return NotFound();
             }
 
-            return View(category);
+            return Ok(category);
         }
 
-        // GET: Categories/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
+        // PUT: Categories/5
 
-        // POST: Categories/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title")] Category category)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutCategory(int id, CategoryDTO category)
         {
-            _unitOfWork.CategoryRepository.Add(category);
-            _unitOfWork.Commit();
-            return RedirectToAction(nameof(Index));
-
-        }
-
-        // GET: Categories/Edit/5
-        public async Task<IActionResult> Edit(int id)
-        {
-            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id); 
-            if (category == null)
-            {
-                return NotFound();
-            }
-            return View(category);
-        }
-
-        // POST: Categories/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] Category category)
-        {
+            // _kafkaProducerHandler.WriteMessage("PUT");
             if (id != category.Id)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-                try
-                {
-                     _unitOfWork.CategoryRepository.Update(category);
-                     _unitOfWork.Commit();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!CategoryExists(category.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+            _categoryCommandHandler.Execute(category);
+            return NoContent();
         }
 
-        // GET: Categories/Delete/5
-        public async Task<IActionResult> Delete(int id)
+        // POST: Categories       
+        [HttpPost]
+        public IActionResult PostCategory(CategoryDTO category)
         {
-            if (id == null || _context.Category == null)
-            {
-                return NotFound();
-            }
-
-            var category = await _unitOfWork.CategoryRepository.GetByIdAsync(id);
-              
-            if (category == null)
-            {
-                return NotFound();
-            }
-
-            return View(category);
+            //_kafkaProducerHandler.WriteMessage("POST");
+            _categoryCommandHandler.Execute(category);
+            return CreatedAtAction("GetCategory", new { id = category.Id }, category);
         }
 
-        // POST: Categories/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        // DELETE: Categories/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCategory(int id)
         {
-            if (_context.Category == null)
+            //_kafkaProducerHandler.WriteMessage("DELETE");
+            _removeCommandHandler.Execute(new RemoveByIdCommand()
             {
-                return Problem("Entity set 'FastFoodKingContext.Category'  is null.");
-            }
-            _unitOfWork.CategoryRepository.Delete(id);
-            _unitOfWork.Commit();
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool CategoryExists(int id)
-        {
-          return _unitOfWork.CategoryRepository.GetByIdAsync(id) != null;
+                Id = id
+            });
+            return NoContent();
         }
     }
+
 }

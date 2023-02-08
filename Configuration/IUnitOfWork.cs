@@ -9,6 +9,8 @@ namespace FastFoodKing.Configuration
         IOrdenDetailRepository OrdenDetailRepository { get; }
         IUserRepository UserRepository { get; }
         ICartRepository CartRepository { get; }
+        object Category { get; }
+
         void Commit();
         void Dispose();
     }

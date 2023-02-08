@@ -1,48 +1,53 @@
 ﻿using FastFoodKing.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace FastFoodKing.Services
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
         protected FastFoodKingContext _context;
-
         internal DbSet<T> _dbSet;
-        public GenericRepository(FastFoodKingContext context) 
-        { 
+        protected readonly ILogger _logger;
+
+        public GenericRepository(FastFoodKingContext context, ILogger logger)
+        {
             _context = context;
-            _dbSet= context.Set<T>();
+            _dbSet = context.Set<T>();
+            _logger = logger;
 
         }
-        public virtual void Add(T entity)
+
+        public virtual Task<IEnumerable<T>> All()
         {
-            _dbSet.Add(entity);
+
+            throw new NotImplementedException();
         }
 
-        public  virtual async void Delete(int id)
+        public virtual async Task<T> GetById(int id)
         {
-            var entity = await _dbSet.FindAsync(id);
-
-            if (entity == null)
-                throw new Exception($"La entidad con el id { id.ToString() } no existe"); 
-
-            _dbSet.Remove(entity);
+            return await _dbSet.FindAsync(id);
         }
 
-        public virtual async Task<IEnumerable<T>> GetAllSync()
+        public virtual async void Add(T entity)
         {
-            return await _dbSet.ToListAsync();
+            await _dbSet.AddAsync(entity);
         }
 
-        public virtual async Task<T> GetByIdAsync(int id)
+        public virtual async void Delete(int id)
         {
-            return await _dbSet.FindAsync(id); 
+            throw new NotImplementedException();
         }
 
-        public virtual void Update(T entity)
+        public virtual void Upsert(T entity)
         {
-            _context.Entry(entity).State = EntityState.Modified; 
-            
+            throw new NotImplementedException();
         }
+
+        public virtual async Task<IEnumerable<T>> Find(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.Where(predicate).ToListAsync();
+        }
+
     }
 }

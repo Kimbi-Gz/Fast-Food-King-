@@ -2,7 +2,8 @@
 
 namespace FastFoodKing.Services
 {
-    public interface ICategoryRepository: IGenericRepository<Category>
+    public interface ICategoryRepository : IGenericRepository<Category>
     {
+    
     }
 }
